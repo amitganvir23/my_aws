@@ -1,0 +1,6 @@
+---
+- hosts: tag_couchbase_server_vm1
+  remote_user: ec2-user
+  sudo: True
+  roles:
+        - couchbase_master

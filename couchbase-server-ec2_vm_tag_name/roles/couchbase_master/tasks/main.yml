@@ -1,0 +1,29 @@
+- include_vars: ../couchbase_master/defaults/stage-master.yml
+
+## installing repository and Couchbase server
+
+- name:  Installing Couchbase repository
+  yum:
+    name: "http://packages.couchbase.com/releases/couchbase-release/couchbase-release-1.0-2-x86_64.rpm"
+    state: present
+  when: (ansible_distribution == "CentOS") or (ansible_distribution == "Amazon")
+
+- name:  Installing the latest version of Couchbase server
+  yum:
+    name: couchbase-server
+    state: present
+
+- name: Start and Enabled Couchbase server Service
+  service:
+    name: couchbase-server
+    state: started
+    enabled: yes
+
+## Configure Couchbase Server
+
+- name: Setup and configure Couchbase Server
+  shell: "/opt/couchbase/bin/couchbase-cli cluster-init -c 127.0.0.1:8091 --cluster-username={{db_user}} --cluster-password={{db_pwd}} --cluster-ramsize={{memory_Quota}} --cluster-index-ramsize={{index_Memory_Quota}} --services=data,index,query"
+  ignore_errors: yes
+  register: setup_couchbase
+
+- debug: var=setup_couchbase.stdout_lines

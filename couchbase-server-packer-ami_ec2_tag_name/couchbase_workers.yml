@@ -1,0 +1,7 @@
+---
+- hosts: tag_couchbase_workers
+  remote_user: ec2-user
+  sudo: True
+  roles:
+        - couchbase_workers
+

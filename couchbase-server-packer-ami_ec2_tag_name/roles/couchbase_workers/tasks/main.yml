@@ -1,0 +1,58 @@
+- include_vars: ../couchbase_master/defaults/stage-master.yml
+
+## installing repository and Couchbase server
+
+- name:  Installing Couchbase repository
+  yum:
+    name: "http://packages.couchbase.com/releases/couchbase-release/couchbase-release-1.0-2-x86_64.rpm"
+    state: present
+  when: (ansible_distribution == "CentOS") or (ansible_distribution == "Amazon")
+
+- name:  Installing the latest version of Couchbase server
+  yum:
+    name: couchbase-server
+    state: present
+
+- name: Start and Enabled Couchbase server Service
+  service:
+    name: couchbase-server
+    state: started
+    enabled: yes
+
+#### Configure Couchbase Server
+
+- name: Tracking Nodes Private IP
+  shell: "ifconfig eth0|grep -w inet|awk '{print $2}'|cut -d ':' -f 2"
+  register: my_private_ip
+
+#- debug: var=my_private_ip.stdout_lines
+#- debug: msg="myip:{{hostvars[inventory_hostname].groups.tag_couchbase_server_vm1}}"
+
+- wait_for:
+    port: 8091
+    delay: 10
+
+
+- name: Setup and configure Couchbase node cluster
+  shell: "/opt/couchbase/bin/couchbase-cli server-add --cluster={{item}}:8091  --user {{db_user}} --password {{db_pwd}} --server-add={{my_private_ip.stdout}}:8091 --server-add-username={{db_user}} --server-add-password={{db_pwd}} --services=data,index,query"
+  register: node_cluster
+  with_items:
+        - "{{hostvars[inventory_hostname].groups.tag_couchbase_server_vm1}}"
+  ignore_errors: yes
+
+
+- name: Checking Couchbase node cluster Status
+  debug: msg="======================+++++++-->>>>>[CHECKING NODE STATUS:{{item.stderr_lines}}{{item.stdout_lines}}"
+  with_items: "{{ node_cluster.results }}"
+  failed_when:
+        - not item.stdout.find('ready') != -1
+        - not item.stdout |search('added')
+
+#### Rebalance Cluster node
+
+- name: Rebalance the Couchbase cluster
+  shell: "/opt/couchbase/bin/couchbase-cli rebalance -c 127.0.0.1:8091 -u {{db_user}} -p {{db_pwd}}"
+  with_items: "{{ node_cluster.results }}"
+  when: 
+        - item.stdout |search('added')
+

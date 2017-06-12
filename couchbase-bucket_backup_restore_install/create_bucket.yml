@@ -1,0 +1,46 @@
+---
+#$1 = username
+#$2 = user password
+#$3 = server ip
+#$4 = bucket name
+#$5 = bucekt mem
+#$6 = jason file
+- hosts: localhost
+  vars:
+        user: admin
+        pwd: password
+        server_ip: 172.18.46.46
+#        bucket_name: test6
+        doc_mem: 100
+        jason_file: /root/couchbase/test2.json
+        bucket_type: couchbase  #couchbase or memcached
+        bucket_replica: 1
+        bucket_ramsize: 100
+        bucket_password: ""
+        bucket_list_file: "/root/couchbase/bucket_list"
+
+  tasks:
+
+        - name: Arranging List of Bucket to create
+          shell: "cat {{bucket_list_file}}|tr ',' '\n'"
+          register: bucket_list
+
+        - name: Creating Bucket on Couchbase server
+          #To create couchbase Buckets
+          shell: "/opt/couchbase/bin/couchbase-cli bucket-create -c {{server_ip}}:8081 -u {{user}} -p {{pwd}} --bucket={{item}} --bucket-type={{bucket_type}} --bucket-ramsize={{bucket_ramsize}} --bucket-password={{bucket_password}} --bucket-replica={{bucket_replica}} --wait"
+          register: result1
+          ignore_errors: yes
+#          with_items:
+#                - test
+#                - test5
+          with_items:
+                - "{{bucket_list.stdout_lines}}"
+
+        - name: Updating Document using jason file
+          #shell: "/opt/couchbase/bin/cbdocloader -u {{user}} -p {{pwd}} -n {{server_ip}}:8081 -b {{bucket_name}} -s {{doc_mem}} {{jason_file}}"
+          shell: "/opt/couchbase/bin/cbdocloader -u {{user}} -p {{pwd}} -n {{server_ip}}:8081 -b {{item}} -s {{doc_mem}} {{jason_file}}"
+          register: result2
+          ignore_errors: yes
+          with_items:
+                - test
+                - test5
